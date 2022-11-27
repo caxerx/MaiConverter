@@ -94,6 +94,8 @@ class SimaiChart:
                     modifier = event["modifier"]
                     if "x" in modifier:
                         is_ex = True
+                    if "b" in modifier:
+                        is_break = True
 
                     if "`" in modifier:
                         # Equivalent to one tick in ma2 with resolution of 384
@@ -106,6 +108,7 @@ class SimaiChart:
                         position=event["button"],
                         duration=event["duration"],
                         is_ex=is_ex,
+                        is_break=is_break
                     )
                 elif event_type == "slide":
                     is_break, is_ex, is_tapless = False, False, False
@@ -294,6 +297,7 @@ class SimaiChart:
         position: int,
         duration: float,
         is_ex: bool = False,
+        is_break: bool = False,
     ) -> SimaiChart:
         """Adds a hold note to the list of notes.
 
@@ -302,6 +306,7 @@ class SimaiChart:
             position: Button where the hold note happens.
             duration: Total time duration of the hold note.
             is_ex: Whether a hold note is an ex note.
+            is_break: Whether a hold note is a break note.
 
         Examples:
             Add a regular hold note at button 2 at measure 1, with
@@ -312,7 +317,7 @@ class SimaiChart:
             >>> simai.add_hold(1, 2, 5)
             >>> simai.add_hold(3, 6, 0.5, is_ex=True)
         """
-        hold_note = HoldNote(measure, position, duration, is_ex)
+        hold_note = HoldNote(measure, position, duration, is_ex, is_break)
         self.notes.append(hold_note)
 
         return self

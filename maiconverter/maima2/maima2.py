@@ -15,7 +15,8 @@ from .ma2note import (
     check_slide,
 )
 from .tools import parse_v1
-from maiconverter.event import NoteType
+from maiconverter.event import (NoteType,
+                                NOTE_REC_MAPPING)
 from maiconverter.tool import (
     second_to_measure,
     measure_to_second,
@@ -23,7 +24,7 @@ from maiconverter.tool import (
 )
 
 # Latest chart version
-MA2_VERSION = "1.03.00"
+MA2_VERSION = "1.04.00"
 
 
 class MaiMa2:
@@ -46,9 +47,9 @@ class MaiMa2:
     """
 
     def __init__(
-        self,
-        fes_mode: bool = False,
-        version: str = MA2_VERSION,
+            self,
+            fes_mode: bool = False,
+            version: str = MA2_VERSION,
     ):
         """Produces a MaiMa2 object.
 
@@ -73,17 +74,22 @@ class MaiMa2:
             Union[TapNote, HoldNote, SlideNote, TouchTapNote, TouchHoldNote]
         ] = []
         self.notes_stat = {
-            "TAP": 0,
-            "BRK": 0,
-            "XTP": 0,
-            "HLD": 0,
-            "XHO": 0,
-            "STR": 0,
-            "BST": 0,
-            "XST": 0,
-            "TTP": 0,
-            "THO": 0,
+            "NMTAP": 0,
+            "BRTAP": 0,
+            "EXTAP": 0,
+            "BXTAP": 0,
+            "NMHLD": 0,
+            "BRHLD": 0,
+            "EXHLD": 0,
+            "BXHLD": 0,
+            "NMSTR": 0,
+            "BRSTR": 0,
+            "EXSTR": 0,
+            "BXSTR": 0,
+            "NMTTP": 0,
+            "NMTHO": 0,
             "SLD": 0,
+            "BSL": 0
         }
 
         # TODO: Remove these when the new Ma2 parser is finished
@@ -110,7 +116,7 @@ class MaiMa2:
             self.version = (values[1], values[2])
         elif line_type == "FES_MODE":
             self.fes_mode = values[1] == "1"
-        elif self.version[1] in ["1.02.00", "1.03.00"]:
+        elif self.version[1] in ["1.04.00"]:
             parse_v1(self, values)
         else:
             raise ValueError(f"Unknown Ma2 version: {self.version}")
@@ -208,10 +214,10 @@ class MaiMa2:
         return self
 
     def set_meter(
-        self,
-        measure: float,
-        meter_numerator: int,
-        meter_denominator: int,
+            self,
+            measure: float,
+            meter_numerator: int,
+            meter_denominator: int,
     ) -> MaiMa2:
         """Sets the meter signature at given measure.
 
@@ -283,12 +289,12 @@ class MaiMa2:
         return self
 
     def add_tap(
-        self,
-        measure: float,
-        position: int,
-        is_break: bool = False,
-        is_star: bool = False,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            is_break: bool = False,
+            is_star: bool = False,
+            is_ex: bool = False,
     ) -> MaiMa2:
         """Adds a tap note to the list of notes.
 
@@ -323,18 +329,16 @@ class MaiMa2:
             is_ex=is_ex,
         )
 
-        if is_ex and is_star:
-            self.notes_stat["XST"] += 1
-        elif is_ex and not is_star:
-            self.notes_stat["XTP"] += 1
-        elif is_break and is_star and not is_ex:
-            self.notes_stat["BST"] += 1
-        elif is_break and not is_star and not is_ex:
-            self.notes_stat["BRK"] += 1
-        elif not is_break and is_star and not is_ex:
-            self.notes_stat["STR"] += 1
-        elif not is_break and not is_star and not is_ex:
-            self.notes_stat["TAP"] += 1
+        prefix = "NM"
+        if is_ex and is_break:
+            prefix = "BX"
+        elif is_ex:
+            prefix = "EX"
+        elif is_break:
+            prefix = "BR"
+
+        suffix = "STR" if is_star else "TAP"
+        self.notes_stat[prefix + suffix] += 1
 
         self.notes.append(tap_note)
 
@@ -358,8 +362,8 @@ class MaiMa2:
             x
             for x in self.notes
             if isinstance(x, TapNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
         ]
         for note in tap_notes:
             is_ex = note.note_type in [NoteType.ex_tap, NoteType.ex_star]
@@ -368,29 +372,30 @@ class MaiMa2:
                 NoteType.star,
                 NoteType.ex_star,
                 NoteType.break_star,
+                NoteType.ex_break_star
             ]
             self.notes.remove(note)
-            if is_ex and is_star:
-                self.notes_stat["XST"] -= 1
-            elif is_ex and not is_star:
-                self.notes_stat["XTP"] -= 1
-            elif is_break and is_star and not is_ex:
-                self.notes_stat["BST"] -= 1
-            elif is_break and not is_star and not is_ex:
-                self.notes_stat["BRK"] -= 1
-            elif not is_break and is_star and not is_ex:
-                self.notes_stat["STR"] -= 1
-            elif not is_break and not is_star and not is_ex:
-                self.notes_stat["TAP"] -= 1
+
+            prefix = "NM"
+            if is_ex and is_break:
+                prefix = "BX"
+            elif is_ex:
+                prefix = "EX"
+            elif is_break:
+                prefix = "BR"
+
+            suffix = "STR" if is_star else "TAP"
+            self.notes_stat[prefix + suffix] -= 1
 
         return self
 
     def add_hold(
-        self,
-        measure: float,
-        position: int,
-        duration: float,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            duration: float,
+            is_ex: bool = False,
+            is_break: bool = False,
     ) -> MaiMa2:
         """Adds a hold note to the list of notes.
 
@@ -402,6 +407,7 @@ class MaiMa2:
             position: Button where the hold note happens.
             duration: Total time duration of the hold note.
             is_ex: Whether a hold note is an ex note.
+            is_break: Wether a hold note is a break note.
 
         Examples:
             Add a regular hold note at button 2 at measure 1, with
@@ -412,12 +418,17 @@ class MaiMa2:
             >>> ma2.add_hold(1, 2, 5)
             >>> ma2.add_hold(3, 6, 0.5, is_ex=True)
         """
-        hold_note = HoldNote(measure, position, duration, is_ex)
+        hold_note = HoldNote(measure, position, duration, is_ex, is_break)
 
-        if is_ex:
-            self.notes_stat["XHO"] += 1
-        else:
-            self.notes_stat["HLD"] += 1
+        prefix = "NM"
+        if is_ex and is_break:
+            prefix = "BX"
+        elif is_ex:
+            prefix = "EX"
+        elif is_break:
+            prefix = "BR"
+
+        self.notes_stat[prefix + "HLD"] += 1
 
         self.notes.append(hold_note)
 
@@ -443,28 +454,37 @@ class MaiMa2:
             x
             for x in self.notes
             if isinstance(x, HoldNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
         ]
         for note in hold_notes:
-            is_ex = note.note_type == NoteType.ex_hold
+            is_ex = note.note_type == NoteType.ex_hold or note.note_type == NoteType.ex_break_hold
+            is_break = note.note_type == NoteType.break_hold or note.note_type == NoteType.ex_break_hold
             self.notes.remove(note)
-            if is_ex:
-                self.notes_stat["XHO"] -= 1
-            else:
-                self.notes_stat["HLD"] -= 1
+
+            prefix = "NM"
+            if is_ex and is_break:
+                prefix = "BX"
+            elif is_ex:
+                prefix = "EX"
+            elif is_break:
+                prefix = "BR"
+
+            self.notes_stat[prefix + "HLD"] += 1
 
         return self
 
     def add_slide(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
-        duration: float,
-        pattern: int,
-        delay: float = 0.25,
-        slide_check: bool = True,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
+            duration: float,
+            pattern: int,
+            delay: float = 0.25,
+            slide_check: bool = True,
+            is_break: bool = False,
+            is_ex: bool = False
     ) -> MaiMa2:
         """Adds a slide note to the list of notes.
 
@@ -483,6 +503,8 @@ class MaiMa2:
             delay: Time duration of when the slide appears and when it
                    starts to move, in terms of measures.
             slide_check: When set to true, will check validity of slides.
+            is_ex: Whether a slide note is an ex note.
+            is_break: Wether a slide note is a break note.
 
         Examples:
             Add an SUL at measure 2.5 from button 1 to 5, with a duration
@@ -501,40 +523,52 @@ class MaiMa2:
             pattern,
             duration,
             delay,
+            is_ex,
+            is_break
         )
-        self.notes_stat["SLD"] += 1
+
+        if is_break:
+            self.notes_stat["BSL"] += 1
+        else:
+            self.notes_stat["SLD"] += 1
+
         self.notes.append(slide_note)
 
         return self
 
     def del_slide(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
     ) -> MaiMa2:
         slide_notes = [
             x
             for x in self.notes
             if isinstance(x, SlideNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == start_position
-            and x.end_position == end_position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == start_position
+               and x.end_position == end_position
         ]
+
+        is_break = self.notes[0].is_break
 
         for note in slide_notes:
             self.notes.remove(note)
-            self.notes_stat["SLD"] -= 1
+            if is_break:
+                self.notes_stat["BSL"] -= 1
+            else:
+                self.notes_stat["SLD"] -= 1
 
         return self
 
     def add_touch_tap(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        is_firework: bool = False,
-        size: str = "M1",
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            is_firework: bool = False,
+            size: str = "M1",
     ) -> MaiMa2:
         """Adds a touch tap note to the list of notes.
 
@@ -556,7 +590,7 @@ class MaiMa2:
             >>> ma2.add_touch_tap(0.75, 1, "B", is_firework=True)
         """
         touch_tap = TouchTapNote(measure, position, region, is_firework, size)
-        self.notes_stat["TTP"] += 1
+        self.notes_stat["NMTTP"] += 1
         self.notes.append(touch_tap)
 
         return self
@@ -566,24 +600,24 @@ class MaiMa2:
             x
             for x in self.notes
             if isinstance(x, TouchTapNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
-            and x.region == region
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
+               and x.region == region
         ]
         for note in touch_taps:
             self.notes.remove(note)
-            self.notes_stat["TTP"] -= 1
+            self.notes_stat["NMTTP"] -= 1
 
         return self
 
     def add_touch_hold(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        duration: float,
-        is_firework: bool = False,
-        size: str = "M1",
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            duration: float,
+            is_firework: bool = False,
+            size: str = "M1",
     ) -> MaiMa2:
         """Adds a touch hold note to the list of notes.
 
@@ -609,28 +643,28 @@ class MaiMa2:
         touch_tap = TouchHoldNote(
             measure, position, region, duration, is_firework, size
         )
-        self.notes_stat["THO"] += 1
+        self.notes_stat["NMTHO"] += 1
         self.notes.append(touch_tap)
 
         return self
 
     def del_touch_hold(
-        self,
-        measure: float,
-        position: int,
-        region: str,
+            self,
+            measure: float,
+            position: int,
+            region: str,
     ) -> MaiMa2:
         touch_holds = [
             x
             for x in self.notes
             if isinstance(x, TouchHoldNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
-            and x.region == region
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
+               and x.region == region
         ]
         for note in touch_holds:
             self.notes.remove(note)
-            self.notes_stat["THO"] -= 1
+            self.notes_stat["NMTHO"] -= 1
 
         return self
 
@@ -745,14 +779,15 @@ class MaiMa2:
         total_notes = 0
         for note_type in self.notes_stat:
             total_notes += self.notes_stat[note_type]
-            result += "T_REC_{}\t{}\n".format(note_type, self.notes_stat[note_type])
+            result += "T_REC_{}\t{}\n".format(NOTE_REC_MAPPING[note_type], self.notes_stat[note_type])
         result += "T_REC_ALL\t{}\n".format(total_notes)
 
         num_taps = sum(
-            [self.notes_stat[i] for i in ["TAP", "XTP", "STR", "XST", "TTP"]]
+            [self.notes_stat[i] for i in ["NMTAP", "EXTAP", "NMSTR", "EXSTR", "NMTTP"]]
         )
-        num_breaks = self.notes_stat["BRK"] + self.notes_stat["BST"]
-        num_holds = sum([self.notes_stat[i] for i in ["HLD", "XHO", "THO"]])
+        num_breaks = self.notes_stat["BRTAP"] + self.notes_stat["BRSTR"] + self.notes_stat["BXTAP"] + self.notes_stat[
+            "BXSTR"]
+        num_holds = sum([self.notes_stat[i] for i in ["NMHLD", "EXHLD", "BXHLD", "NMTHO"]])
         num_slides = self.notes_stat["SLD"]
 
         result += "T_NUM_TAP\t{}\n".format(num_taps)
@@ -789,10 +824,10 @@ class MaiMa2:
         total_max_score_hold = 1000 * num_holds
         total_max_score_slide = 1500 * num_slides
         total_max_score = (
-            total_max_score_tap
-            + total_max_score_break
-            + total_max_score_hold
-            + total_max_score_slide
+                total_max_score_tap
+                + total_max_score_break
+                + total_max_score_hold
+                + total_max_score_slide
         )
         result += "TTM_SCR_TAP\t{}\n".format(total_max_score_tap)
         result += "TTM_SCR_BRK\t{}\n".format(total_max_score_break)
@@ -800,10 +835,10 @@ class MaiMa2:
         result += "TTM_SCR_SLD\t{}\n".format(total_max_score_slide)
         result += "TTM_SCR_ALL\t{}\n".format(total_max_score)
         total_base_score = (
-            total_max_score_tap
-            + total_max_score_hold
-            + total_max_score_slide
-            + 2500 * num_breaks
+                total_max_score_tap
+                + total_max_score_hold
+                + total_max_score_slide
+                + 2500 * num_breaks
         )
         max_finale_achievement = int(10000 * total_max_score / total_base_score)
         total_max_score_s = round(0.97 * total_base_score / 100) * 100

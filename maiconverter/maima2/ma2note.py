@@ -8,16 +8,16 @@ from maiconverter.tool import slide_distance
 # Does not cover slide notes, BPM, and meter events.
 # Use slide_dict for slides instead.
 note_dict = {
-    "TAP": 1,
-    "HLD": 2,
-    "BRK": 3,
-    "STR": 4,
-    "BST": 5,
-    "XTP": 6,
-    "XST": 7,
-    "XHO": 8,
-    "TTP": 9,
-    "THO": 10,
+    "NMTAP": 1,
+    "NMHLD": 2,
+    "BRTAP": 3,
+    "NMSTR": 4,
+    "BRSTR": 5,
+    "EXTAP": 6,
+    "EXSTR": 7,
+    "EXHLD": 8,
+    "NMTTP": 9,
+    "NMTHO": 10,
     # "SLD": 11
 }
 
@@ -41,13 +41,15 @@ slide_dict = {
 
 class SlideNote(MaiNote):
     def __init__(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
-        pattern: int,
-        duration: float,
-        delay: float = 0.25,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
+            pattern: int,
+            duration: float,
+            delay: float = 0.25,
+            is_break: bool = False,
+            is_ex: bool = False
     ) -> None:
         """Produces a ma2 slide note.
 
@@ -64,6 +66,9 @@ class SlideNote(MaiNote):
                       measures.
             delay: Time duration of when the slide appears and when it
                    starts to move, in terms of measures.
+            is_ex: Whether a slide note is an ex note.
+            is_break: Wether a slide note is a break note.
+
         Raises:
             ValueError: When pattern or duration is not a positive integer,
                         and when delay, or end_position are negative.
@@ -82,6 +87,8 @@ class SlideNote(MaiNote):
         self.pattern = pattern
         self.delay = delay
         self.duration = duration
+        self.is_ex = is_ex
+        self.is_break = is_break
 
     def to_str(self, resolution: int = 384) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
@@ -90,11 +97,19 @@ class SlideNote(MaiNote):
         if self.pattern not in inv_slide_dict:
             raise ValueError(f"Unknown slide pattern {self.pattern}")
 
+        prefix = "NM"
+        if self.is_ex and self.is_break:
+            prefix = "BX"
+        elif self.is_ex:
+            prefix = "EX"
+        elif self.is_break:
+            prefix = "BR"
+
         pattern = inv_slide_dict[self.pattern]
         delay = round(self.delay * resolution)
         duration = round(self.duration * resolution)
         return template.format(
-            pattern,
+            prefix + pattern,
             measure[0],
             measure[1],
             self.position,
@@ -106,11 +121,12 @@ class SlideNote(MaiNote):
 
 class HoldNote(MaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        duration: float,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            duration: float,
+            is_ex: bool = False,
+            is_break: bool = False,
     ) -> None:
         """Produces a ma2 hold note.
 
@@ -129,28 +145,43 @@ class HoldNote(MaiNote):
         if duration < 0:
             raise ValueError(f"Hold duration is negative: {duration}")
 
-        if is_ex:
+        if is_ex and is_break:
+            super().__init__(measure, position, NoteType.ex_break_hold)
+        elif is_ex:
             super().__init__(measure, position, NoteType.ex_hold)
+        elif is_break:
+            super().__init__(measure, position, NoteType.break_hold)
         else:
             super().__init__(measure, position, NoteType.hold)
 
+        self.is_break = is_break
+        self.is_ex = is_ex
         self.duration = duration
 
     def to_str(self, resolution: int) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
-        template = "HLD\t{}\t{}\t{}\t{}"
+
+        prefix = "NM"
+        if self.is_ex and self.is_break:
+            prefix = "BX"
+        elif self.is_ex:
+            prefix = "EX"
+        elif self.is_break:
+            prefix = "BR"
+
+        template = "{}HLD\t{}\t{}\t{}\t{}"
         duration = round(self.duration * resolution)
-        return template.format(measure[0], measure[1], self.position, duration)
+        return template.format(prefix, measure[0], measure[1], self.position, duration)
 
 
 class TapNote(MaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        is_star: bool = False,
-        is_break: bool = False,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            is_star: bool = False,
+            is_break: bool = False,
+            is_ex: bool = False,
     ) -> None:
         """Produces a ma2 tap note.
 
@@ -165,38 +196,52 @@ class TapNote(MaiNote):
             is_ex: Whether a tap note is an ex note.
         """
 
-        if is_ex and is_star:
-            super().__init__(measure, position, NoteType.ex_star)
-        elif is_ex and not is_star:
-            super().__init__(measure, position, NoteType.ex_tap)
-        elif is_star and is_break:
-            super().__init__(measure, position, NoteType.break_star)
-        elif is_star and not is_break:
-            super().__init__(measure, position, NoteType.star)
-        elif not is_star and is_break:
-            super().__init__(measure, position, NoteType.break_tap)
-        elif not is_star and not is_break:
-            super().__init__(measure, position, NoteType.tap)
+        if is_star:
+            if is_ex and is_break:
+                super().__init__(measure, position, NoteType.ex_break_star)
+            elif is_ex:
+                super().__init__(measure, position, NoteType.ex_star)
+            elif is_break:
+                super().__init__(measure, position, NoteType.break_star)
+            else:
+                super().__init__(measure, position, NoteType.star)
+        else:
+            if is_ex and is_break:
+                super().__init__(measure, position, NoteType.ex_break_tap)
+            elif is_ex:
+                super().__init__(measure, position, NoteType.ex_tap)
+            elif is_break:
+                super().__init__(measure, position, NoteType.break_tap)
+            else:
+                super().__init__(measure, position, NoteType.tap)
+
+        self.is_star = is_star
+        self.is_ex = is_ex
+        self.is_break = is_break
 
     def to_str(self, resolution: int) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
-        template = "{}\t{}\t{}\t{}"
-        inv_note_dict = {v: k for k, v in note_dict.items()}
-        if self.note_type.value not in inv_note_dict:
-            raise ValueError(f"Unknown tap note {self.note_type.value}")
+        template = "{}{}\t{}\t{}\t{}"
 
-        name = inv_note_dict[self.note_type.value]
-        return template.format(name, measure[0], measure[1], self.position)
+        prefix = "NM"
+        if self.is_ex and self.is_break:
+            prefix = "BX"
+        elif self.is_ex:
+            prefix = "EX"
+        elif self.is_break:
+            prefix = "BR"
+        suffix = "STR" if self.is_star else "TAP"
+        return template.format(prefix, suffix, measure[0], measure[1], self.position)
 
 
 class TouchTapNote(MaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        is_firework: bool = False,
-        size: str = "M1",
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            is_firework: bool = False,
+            size: str = "M1",
     ) -> None:
         """Produces a ma2 touch tap note.
 
@@ -232,7 +277,7 @@ class TouchTapNote(MaiNote):
 
     def to_str(self, resolution: int) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
-        template = "TTP\t{}\t{}\t{}\t{}\t{}\t{}"
+        template = "NMTTP\t{}\t{}\t{}\t{}\t{}\t{}"
         fireworks = 1 if self.is_firework else 0
         return template.format(
             measure[0],
@@ -246,13 +291,13 @@ class TouchTapNote(MaiNote):
 
 class TouchHoldNote(MaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        duration: float,
-        is_firework: bool = False,
-        size: str = "M1",
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            duration: float,
+            is_firework: bool = False,
+            size: str = "M1",
     ) -> None:
         """Produces a ma2 touch hold note.
 
@@ -291,7 +336,7 @@ class TouchHoldNote(MaiNote):
     def to_str(self, resolution: int) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
         template = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}"
-        name = "THO"
+        name = "NMTHO"
         duration = round(self.duration * resolution)
         fireworks = 1 if self.is_firework else 0
         return template.format(
@@ -345,10 +390,10 @@ class BPM(Event):
 
 class Meter(Event):
     def __init__(
-        self,
-        measure: float,
-        meter_numerator: int,
-        meter_denominator: int,
+            self,
+            measure: float,
+            meter_numerator: int,
+            meter_denominator: int,
     ) -> None:
         """Produces a ma2 meter signature event.
 

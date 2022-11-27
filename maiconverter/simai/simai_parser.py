@@ -288,9 +288,10 @@ class FragmentTransformer(Transformer):
             if char == "h":
                 continue
 
-            if is_tap and char in "bx$":
+            if char in "bx":
                 modifier += char
-            elif not is_tap and char in "x":
+
+            if is_tap and char in "$":
                 modifier += char
 
         if not is_tap:

@@ -40,12 +40,14 @@ def convert_notes(ma2: MaiMa2, simai_notes: List[SimaiNote]) -> None:
     for simai_note in simai_notes:
         note_type = simai_note.note_type
         if isinstance(simai_note, TapNote):
-            is_break = note_type in [NoteType.break_tap, NoteType.break_star]
-            is_ex = note_type in [NoteType.ex_tap, NoteType.ex_star]
+            is_break = note_type in [NoteType.break_tap, NoteType.break_star, NoteType.ex_break_star,
+                                     NoteType.ex_break_tap]
+            is_ex = note_type in [NoteType.ex_tap, NoteType.ex_star, NoteType.ex_break_star, NoteType.ex_break_tap]
             is_star = note_type in [
                 NoteType.star,
                 NoteType.break_star,
                 NoteType.ex_star,
+                NoteType.ex_break_star
             ]
             ma2.add_tap(
                 measure=simai_note.measure,
@@ -55,12 +57,14 @@ def convert_notes(ma2: MaiMa2, simai_notes: List[SimaiNote]) -> None:
                 is_ex=is_ex,
             )
         elif isinstance(simai_note, HoldNote):
-            is_ex = note_type == NoteType.ex_hold
+            is_break = note_type in [NoteType.break_hold, NoteType.ex_break_hold]
+            is_ex = note_type in [NoteType.ex_hold, NoteType.ex_break_hold]
             ma2.add_hold(
                 measure=simai_note.measure,
                 position=simai_note.position,
                 duration=simai_note.duration,
                 is_ex=is_ex,
+                is_break=is_break
             )
         elif isinstance(simai_note, SlideNote):
             # Ma2 slide durations does not include the delay
@@ -107,25 +111,25 @@ def fix_durations(ma2: MaiMa2):
         return result
 
     def compensate_duration(
-        start: float, duration: float, base_bpm: float, changes: List[BPM]
+            start: float, duration: float, base_bpm: float, changes: List[BPM]
     ) -> float:
         new_duration = 0
 
         note_start = start
         for bpm in changes:
             new_duration += (
-                ma2.get_bpm(bpm.measure - 0.0001)
-                * (bpm.measure - note_start)
-                / base_bpm
+                    ma2.get_bpm(bpm.measure - 0.0001)
+                    * (bpm.measure - note_start)
+                    / base_bpm
             )
 
             note_start = bpm.measure
 
         if note_start < start + duration:
             new_duration += (
-                ma2.get_bpm(note_start + 0.0001)
-                * (start + duration - note_start)
-                / base_bpm
+                    ma2.get_bpm(note_start + 0.0001)
+                    * (start + duration - note_start)
+                    / base_bpm
             )
 
         return new_duration

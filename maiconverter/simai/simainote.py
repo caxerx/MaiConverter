@@ -45,31 +45,42 @@ class TapNote(SimaiNote):
         is_ex: bool = False,
     ) -> None:
         measure = round(100000.0 * measure) / 100000.0
-        if is_ex and is_star:
-            super().__init__(measure, position, NoteType.ex_star)
-        elif is_ex and not is_star:
-            super().__init__(measure, position, NoteType.ex_tap)
-        elif is_star and is_break:
-            super().__init__(measure, position, NoteType.break_star)
-        elif is_star and not is_break:
-            super().__init__(measure, position, NoteType.star)
-        elif is_break:
-            super().__init__(measure, position, NoteType.break_tap)
+
+        if is_star:
+            if is_ex and is_break:
+                super().__init__(measure, position, NoteType.ex_break_star)
+            elif is_ex:
+                super().__init__(measure, position, NoteType.ex_star)
+            elif is_break:
+                super().__init__(measure, position, NoteType.break_star)
+            else:
+                super().__init__(measure, position, NoteType.star)
         else:
-            super().__init__(measure, position, NoteType.tap)
+            if is_ex and is_break:
+                super().__init__(measure, position, NoteType.ex_break_tap)
+            elif is_ex:
+                super().__init__(measure, position, NoteType.ex_tap)
+            elif is_break:
+                super().__init__(measure, position, NoteType.break_tap)
+            else:
+                super().__init__(measure, position, NoteType.tap)
 
 
 class HoldNote(SimaiNote):
     def __init__(
-        self, measure: float, position: int, duration: float, is_ex: bool = False
+        self, measure: float, position: int, duration: float, is_ex: bool = False, is_break: bool = False
     ) -> None:
         if duration < 0:
             raise ValueError(f"Hold duration is negative: {duration}")
 
         measure = round(100000.0 * measure) / 100000.0
         duration = round(100000.0 * duration) / 100000.0
-        if is_ex:
+        if is_ex and is_break:
+            super().__init__(measure, position, NoteType.ex_break_hold)
+        elif is_ex:
             super().__init__(measure, position, NoteType.ex_hold)
+        elif is_break:
+            super().__init__(measure, position, NoteType.break_hold)
         else:
             super().__init__(measure, position, NoteType.hold)
 

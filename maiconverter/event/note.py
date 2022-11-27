@@ -5,6 +5,7 @@ from typing import Dict
 
 from .event import Event, EventType
 
+
 # Note types
 # 0: Start slide (For SDT)
 # 1: Regular Tap
@@ -34,12 +35,38 @@ class NoteType(enum.Enum):
     touch_tap = 9
     touch_hold = 10
     complete_slide = 11
+    ex_break_tap = 12
+    break_hold = 13
+    ex_break_hold = 14
+    break_slide = 15
+    ex_slide = 16
+    ex_break_slide = 17
+    ex_break_star = 18
     end_slide = 128
 
 
 NOTE_ORDERING: Dict[int, int] = {
     5: 0,
     4: 0,
+}
+
+NOTE_REC_MAPPING: Dict[str, str] = {
+    "NMTAP": "TAP",
+    "BRTAP": "BRK",
+    "EXTAP": "XTP",
+    "BXTAP": "BXX",
+    "NMHLD": "HLD",
+    "EXHLD": "XHO",
+    "BRHLD": "BHO",
+    "BXHLD": "BXH",
+    "NMSTR": "STR",
+    "BRSTR": "BST",
+    "EXSTR": "XST",
+    "BXSTR": "XBS",
+    "NMTTP": "TTP",
+    "NMTHO": "THO",
+    "SLD": "SLD",
+    "BSL": "BSL"
 }
 
 
@@ -70,9 +97,9 @@ class MaiNote(Note):
 
     def __eq__(self, other):
         return (
-            math.isclose(self.measure, other.measure, abs_tol=0.0001)
-            and self.position == other.position
-            and self.note_type.value == other.note_type.value
+                math.isclose(self.measure, other.measure, abs_tol=0.0001)
+                and self.position == other.position
+                and self.note_type.value == other.note_type.value
         )
 
 
@@ -92,7 +119,7 @@ class SimaiNote(Note):
 
     def __eq__(self, other):
         return (
-            math.isclose(self.measure, other.measure, abs_tol=0.0001)
-            and self.note_type.value == other.note_type.value
-            and self.position == other.position
+                math.isclose(self.measure, other.measure, abs_tol=0.0001)
+                and self.note_type.value == other.note_type.value
+                and self.position == other.position
         )
