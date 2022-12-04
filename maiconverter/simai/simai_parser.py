@@ -126,142 +126,128 @@ class FragmentTransformer(Transformer):
             "duration": num / den,
         }
 
+    def slide_pos(self, items) -> dict:
+        return {
+            "type": "slide_pos",
+            "pos": items[0].value
+        }
+
+    def slide_connector(self, items) -> dict:
+        connector_str = items[0].value
+        if connector_str.startswith("V"):
+            return {
+                "type": "slide_connector",
+                "pattern": "V",
+                "reflect": int(connector_str[1]) - 1
+            }
+
+        return {
+            "type": "slide_connector",
+            "pattern": connector_str
+        }
+
+    def slide_modifier(self, items) -> dict:
+        return {
+            "type": "slide_modifier",
+            "modifier": items[0].value
+        }
+
     def slide_beg(self, items) -> dict:
-        text = items[0]
-        start = int(text[0]) - 1
-        text = text[1:]
+        slides = []
+        current_slide = None
+        slide_modifier = ""
 
-        modifier = ""
-        for i, char in enumerate(text):
-            if char in "b@x?$!":
-                modifier += char
-            else:
-                text = text[i:]
-                break
+        for i in items:
+            if i['type'] == "slide_connector":
+                if current_slide is not None:
+                    slides.append(current_slide)
+                current_slide = {
+                    "type": "connected_slide" if current_slide is not None else "slide",
+                    "start": current_slide['end'] if current_slide is not None else None,
+                    "pattern": i['pattern'],
+                    "reflect": i['reflect'] if 'reflect' in i else None,
+                    "end": None,
+                    "duration": None,
+                    "equivalent_bpm": None
+                }
 
-        reflect = None
+            if i['type'] == "slide_pos":
+                current_slide["end"] = i["pos"]
 
-        if text[0] not in "-^<>szvwpqV":
-            raise ValueError(f"Unknown slide pattern {text[0]}")
+            if i['type'] == "duration":
+                current_slide["duration"] = i["duration"]
+                current_slide["equivalent_bpm"] = i['equivalent_bpm']
 
-        pattern = text[0]
-        if text[0] in "-^<>szvw":
-            text = text[1:]
-        elif text[0] in "pq" and text[1] in "pq":
-            pattern += text[1]
-            text = text[2:]
-        elif text[0] in "pq" and text[1] not in "pq":
-            text = text[1:]
-        else:  # V slide
-            reflect = int(text[1]) - 1
-            text = text[2:]
+            if i['type'] == "slide_modifier":
+                slide_modifier += i["modifier"]
 
-        end = int(text[0]) - 1
+        slides.append(current_slide)
 
         return {
             "type": "slide_beg",
-            "start": start,
-            "modifier": modifier,
-            "pattern": pattern,
-            "reflect": reflect,
-            "end": end,
+            "slides": slides,
+            "slide_modifier": slide_modifier
         }
 
-    def chained_slide_note(self, items) -> dict:
-        if len(items) == 2:
-            (
-                text,
-                duration_dict,
-            ) = items
-            duration = duration_dict["duration"]
-            equivalent_bpm = duration_dict["equivalent_bpm"]
-        else:
-            (text,) = items
-            duration = None
-            equivalent_bpm = None
-
-        # Skip the modifiers in a chained slide
-        for i, char in enumerate(text):
-            if char not in "b@x?$!":
-                text = text[i:]
-                break
-
-        pattern = text[0]
-        reflect = None
-        if text[0] in "-^<>szvw":
-            text = text[1:]
-        elif text[0] in "pq" and text[1] in "pq":
-            pattern += text[1]
-            text = text[2:]
-        elif text[0] in "pq" and text[1] not in "pq":
-            text = text[1:]
-        else:  # V slide
-            reflect = int(text[1]) - 1
-            text = text[2:]
-
-        end = int(text[0]) - 1
+    def chained_slide_note(self, item) -> dict:
+        slides = []
+        slide_modifier = ""
+        for i in item:
+            if 'type' in i and i['type'] == 'slide_beg':
+                slides = i['slides']
+                slide_modifier = i['slide_modifier']
 
         return {
             "type": "chained_slide_note",
-            "pattern": pattern,
-            "reflect": reflect,
-            "end": end,
-            "equivalent_bpm": equivalent_bpm,
-            "duration": duration,
+            "slides": slides,
+            "slide_modifier": slide_modifier
         }
 
-    def slide_note(self, items):
-        start = None
-        end = None
-        modifier = ""
-        pattern = None
-        reflect = None
-        equivalent_bpm = None
-        duration = None
-        chained_slides = []
-
-        for item in items:
-            if isinstance(item, dict) and item["type"] == "slide_beg":
-                if item["start"] == -1 or item["reflect"] == -1 or item["end"] == -1:
-                    return
-
-                start = item["start"]
-                modifier = item["modifier"]
-                pattern = item["pattern"]
-                end = item["end"]
-                reflect = item["reflect"]
-            elif isinstance(item, dict) and item["type"] == "duration":
-                equivalent_bpm = item["equivalent_bpm"]
-                duration = item["duration"]
-            elif isinstance(item, dict) and item["type"] == "chained_slide_note":
-                chained_slides.append(item)
-            else:
-                raise ValueError(f"Unknown value: {item}")
-
-        if any((c is None) for c in [start, end, pattern, duration]):
-            raise ValueError("Incomplete data")
-
+    def slide_note(self, items) -> dict:
         slides = []
-        if start != -1 and end != -1 and reflect != -1:
-            note_dict = {
-                "type": "slide",
-                "start_button": start,
-                "modifier": modifier,
-                "pattern": pattern,
-                "reflect_position": reflect,
-                "end_button": end,
-                "duration": duration,
-                "equivalent_bpm": equivalent_bpm,
-            }
-            slides.append(note_dict)
+        slide_modifier = []
+        star_modifier = ""
+        slide_pos = None
+        for i in items:
+            if i['type'] == "slide_pos":
+                slide_pos = i['pos']
+            if i['type'] == 'slide_modifier':
+                star_modifier = i['modifier']
+            if i['type'] == 'slide_beg':
+                slides.append(i['slides'])
+                slide_modifier.append(i['slide_modifier'])
+            if i['type'] == 'chained_slide_note':
+                slides.append(i['slides'])
+                slide_modifier.append(i['slide_modifier'])
 
-        if len(chained_slides) != 0:
-            slides += process_chained_slides(
-                start, duration, equivalent_bpm, modifier + "*", chained_slides
-            )
+        for i in slides:
+            i[0]['start'] = slide_pos
+            only_last_slide_has_duration = i[-1]['duration'] is not None
+            all_slide_has_duration = i[-1]['duration'] is not None
+            for j in i[:-1]:
+                if j['duration'] is None:
+                    all_slide_has_duration = False
+                else:
+                    only_last_slide_has_duration = False
 
-        if len(slides) > 0:
-            return slides
+            if not only_last_slide_has_duration and not all_slide_has_duration:
+                raise ValueError(
+                    "Please only specify duration in last slide or specify all slide duration in the combined slide.")
+
+            if only_last_slide_has_duration and len(i) != 1:
+                equivalent_bpm = i[-1]['equivalent_bpm']
+                average_duration = i[-1]['duration'] / (len(i) - 1)
+                for j in i:
+                    j['duration'] = average_duration
+                    j['equivalent_bpm'] = equivalent_bpm
+
+        return {
+            "type": "slide_fes",
+            "modifier": star_modifier,
+            "slide_modifier": slide_modifier,
+            "slides": slides,
+            "start_button": slide_pos
+        }
 
     def tap_hold_note(self, items):
         if len(items) == 2:
@@ -394,11 +380,11 @@ class FragmentTransformer(Transformer):
 
 
 def process_chained_slides(
-    start_button: int,
-    duration: dict,
-    equivalent_bpm: dict,
-    slide_modifier: str,
-    chained_slides: List[dict],
+        start_button: int,
+        duration: dict,
+        equivalent_bpm: dict,
+        slide_modifier: str,
+        chained_slides: List[dict],
 ):
     complete_slides = []
     for slide in chained_slides:
@@ -428,7 +414,7 @@ def process_chained_slides(
 
 
 def parse_fragment(fragment: str, lark_file: str = "simai_fragment.lark") -> List[dict]:
-    parser = Lark.open(lark_file, rel_to=__file__, parser="lalr")
+    parser = Lark.open(lark_file, rel_to=__file__, parser="earley")
     try:
         return FragmentTransformer().transform(parser.parse(fragment))
     except Exception:

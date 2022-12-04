@@ -484,7 +484,8 @@ class MaiMa2:
             delay: float = 0.25,
             slide_check: bool = True,
             is_break: bool = False,
-            is_ex: bool = False
+            is_ex: bool = False,
+            is_connect: bool = False
     ) -> MaiMa2:
         """Adds a slide note to the list of notes.
 
@@ -523,14 +524,16 @@ class MaiMa2:
             pattern,
             duration,
             delay,
+            is_break,
             is_ex,
-            is_break
+            is_connect
         )
 
-        if is_break:
-            self.notes_stat["BSL"] += 1
-        else:
-            self.notes_stat["SLD"] += 1
+        if not is_connect:
+            if is_break:
+                self.notes_stat["BSL"] += 1
+            else:
+                self.notes_stat["SLD"] += 1
 
         self.notes.append(slide_note)
 

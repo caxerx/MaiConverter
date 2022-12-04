@@ -77,6 +77,9 @@ def convert_notes(ma2: MaiMa2, simai_notes: List[SimaiNote]) -> None:
                 duration=simai_note.duration,
                 pattern=pattern,
                 delay=simai_note.delay,
+                is_break=simai_note.is_break,
+                is_ex=simai_note.is_ex,
+                is_connect=simai_note.is_connect
             )
         elif isinstance(simai_note, TouchTapNote):
             ma2.add_touch_tap(

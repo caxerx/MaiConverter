@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 from ..event import Event, EventType, SimaiNote, NoteType
 from ..tool import slide_distance, slide_is_cw
 
-
 # For straightforward slide pattern conversion from simai to sxt/ma2.
 # Use simai_pattern_to_int to cover all simai slide patterns.
 slide_dict = {
@@ -37,12 +36,12 @@ slide_patterns = [
 
 class TapNote(SimaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        is_break: bool = False,
-        is_star: bool = False,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            is_break: bool = False,
+            is_star: bool = False,
+            is_ex: bool = False,
     ) -> None:
         measure = round(100000.0 * measure) / 100000.0
 
@@ -68,7 +67,7 @@ class TapNote(SimaiNote):
 
 class HoldNote(SimaiNote):
     def __init__(
-        self, measure: float, position: int, duration: float, is_ex: bool = False, is_break: bool = False
+            self, measure: float, position: int, duration: float, is_ex: bool = False, is_break: bool = False
     ) -> None:
         if duration < 0:
             raise ValueError(f"Hold duration is negative: {duration}")
@@ -89,14 +88,17 @@ class HoldNote(SimaiNote):
 
 class SlideNote(SimaiNote):
     def __init__(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
-        duration: float,
-        pattern: str,
-        delay: float = 0.25,
-        reflect_position: Optional[int] = None,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
+            duration: float,
+            pattern: str,
+            delay: float = 0.25,
+            is_break: bool = False,
+            is_ex: bool = False,
+            is_connect: bool = False,
+            reflect_position: Optional[int] = None,
     ) -> None:
         """Produces a simai slide note.
 
@@ -137,12 +139,15 @@ class SlideNote(SimaiNote):
         self.end_position = end_position
         self.pattern = pattern
         self.delay = delay
+        self.is_break = is_break
+        self.is_ex = is_ex
+        self.is_connect = is_connect
         self.reflect_position = reflect_position
 
 
 class TouchTapNote(SimaiNote):
     def __init__(
-        self, measure: float, position: int, region: str, is_firework: bool = False
+            self, measure: float, position: int, region: str, is_firework: bool = False
     ) -> None:
         measure = round(measure * 100000.0) / 100000.0
 
@@ -153,12 +158,12 @@ class TouchTapNote(SimaiNote):
 
 class TouchHoldNote(SimaiNote):
     def __init__(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        duration: float,
-        is_firework: bool = False,
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            duration: float,
+            is_firework: bool = False,
     ) -> None:
         measure = round(measure * 100000.0) / 100000.0
         duration = round(duration * 100000.0) / 100000.0
@@ -192,7 +197,7 @@ def slide_to_pattern_str(slide_note: SlideNote) -> str:
 
 
 def pattern_from_int(
-    pattern: int, start_position: int, end_position: int
+        pattern: int, start_position: int, end_position: int
 ) -> Tuple[str, Optional[int]]:
     top_list = [0, 1, 6, 7]
     inv_slide_dict = {v: k for k, v in slide_dict.items()}
@@ -215,7 +220,7 @@ def pattern_from_int(
 
             return ">", None
         if (start_position in top_list and is_cw) or not (
-            start_position in top_list or is_cw
+                start_position in top_list or is_cw
         ):
             return ">", None
 

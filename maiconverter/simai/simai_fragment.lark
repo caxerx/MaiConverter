@@ -23,11 +23,19 @@ duration: "[" /(\d+(\.\d*)?#)/? INT ":" INT "]"
 bpm: "(" NUMBER ")"
 divisor: "{" NUMBER "}"
 
+
+
+
+slide_connector: /[-^<>szvw]|p{1,2}|q{1,2}|V[0-8]/
+slide_modifier: /[bx$]+/
+slide_pos: /[0-8]/
+
+slide_beg: (slide_connector slide_pos slide_modifier? duration? slide_modifier?)* slide_connector slide_pos slide_modifier? duration slide_modifier?
+chained_slide_note: "*" slide_modifier? slide_beg
+slide_note: slide_pos slide_modifier? slide_beg chained_slide_note*
+
 tap_hold_note: /[0-8][hbex$]*/ duration?
 
-slide_beg: /[0-8][b@x?$!]*([-^<>szvw]|p{1,2}|q{1,2}|V[0-8])[0-8]/
-slide_note: slide_beg duration chained_slide_note*
-chained_slide_note: "*" /[b@ex?$!]*([-^<>szvw]|p{1,2}|q{1,2}|V[0-8])[0-8]/ duration?
 
 touch_tap_hold_note: /((C[012]?)|(B[0-8])|(E[0-8])|(A[0-8])|(D[0-8]))[hfe]*/ duration?
 

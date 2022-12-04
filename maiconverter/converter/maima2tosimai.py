@@ -39,8 +39,9 @@ def convert_notes(simai_chart: SimaiChart, ma2_notes: Sequence[MaiNote]) -> None
     for ma2_note in ma2_notes:
         note_type = ma2_note.note_type
         if isinstance(ma2_note, TapNote):
-            is_break = note_type in [NoteType.break_tap, NoteType.break_star]
-            is_ex = note_type in [NoteType.ex_tap, NoteType.ex_star]
+            is_break = note_type in [NoteType.break_tap, NoteType.break_star, NoteType.ex_break_tap,
+                                     NoteType.ex_break_star]
+            is_ex = note_type in [NoteType.ex_tap, NoteType.ex_star, NoteType.ex_break_tap, NoteType.ex_break_star]
             is_star = note_type in [
                 NoteType.star,
                 NoteType.break_star,
@@ -54,12 +55,14 @@ def convert_notes(simai_chart: SimaiChart, ma2_notes: Sequence[MaiNote]) -> None
                 is_ex=is_ex,
             )
         elif isinstance(ma2_note, HoldNote):
-            is_ex = note_type == NoteType.ex_hold
+            is_break = note_type in [NoteType.break_hold, NoteType.ex_break_hold]
+            is_ex = note_type in [NoteType.ex_hold, NoteType.ex_break_hold]
             simai_chart.add_hold(
                 measure=ma2_note.measure,
                 position=ma2_note.position,
                 duration=ma2_note.duration,
                 is_ex=is_ex,
+                is_break=is_break
             )
         elif isinstance(ma2_note, SlideNote):
             # Ma2 slide durations does not include the delay
@@ -109,25 +112,25 @@ def fix_durations(simai: SimaiChart):
         return result
 
     def compensate_duration(
-        start: float, duration: float, base_bpm: float, changes: List[BPM]
+            start: float, duration: float, base_bpm: float, changes: List[BPM]
     ) -> float:
         new_duration = 0
 
         note_start = start
         for bpm in changes:
             new_duration += (
-                base_bpm
-                * (bpm.measure - note_start)
-                / simai.get_bpm(bpm.measure - 0.0001)
+                    base_bpm
+                    * (bpm.measure - note_start)
+                    / simai.get_bpm(bpm.measure - 0.0001)
             )
 
             note_start = bpm.measure
 
         if note_start < start + duration:
             new_duration += (
-                base_bpm
-                * (start + duration - note_start)
-                / simai.get_bpm(note_start + 0.0001)
+                    base_bpm
+                    * (start + duration - note_start)
+                    / simai.get_bpm(note_start + 0.0001)
             )
 
         return new_duration

@@ -91,6 +91,7 @@ class SimaiChart:
                     )
                 elif event_type == "hold":
                     is_ex = False
+                    is_break = False
                     modifier = event["modifier"]
                     if "x" in modifier:
                         is_ex = True
@@ -110,6 +111,119 @@ class SimaiChart:
                         is_ex=is_ex,
                         is_break=is_break
                     )
+                elif event_type == "slide_fes":
+                    is_break_star, is_ex_star, is_tapless = False, False, False
+                    modifier = event["modifier"]
+                    if "b" in modifier:
+                        is_break_star = True
+                    if "x" in modifier:
+                        is_ex_star = True
+                    if any([a in modifier for a in "?!$"]):
+                        is_tapless = True
+
+                    if "`" in modifier:
+                        # Equivalent to one tick in ma2 with resolution of 384
+                        offset += 0.0027
+                    else:
+                        offset = 0
+
+                    slide_local_measure = simai_chart._measure + offset
+
+                    if not (is_tapless or event["start_button"] in star_positions):
+                        simai_chart.add_tap(
+                            measure=slide_local_measure,
+                            position=int(event["start_button"]) - 1,
+                            is_break=is_break_star,
+                            is_star=True,
+                            is_ex=is_ex_star,
+                        )
+                        star_positions.append(event["start_button"])
+
+                    for (i, slides) in enumerate(event['slides']):
+                        slide_modifier = event['slide_modifier'][i]
+                        measure_offset = 0
+                        for slide in slides:
+                            delay = 0
+                            equivalent_bpm = slide["equivalent_bpm"]
+                            duration = slide["duration"]
+
+                            if slide['type'] == "slide":
+                                delay = 0.25
+
+                            if equivalent_bpm is not None:
+                                multiplier = (
+                                        simai_chart.get_bpm(simai_chart._measure) / equivalent_bpm
+                                )
+                                duration = multiplier * duration
+                                delay = multiplier * delay
+
+                            simai_chart.add_slide(
+                                measure=slide_local_measure + measure_offset,
+                                start_position=int(slide["start"]) - 1,
+                                end_position=int(slide["end"]) - 1,
+                                duration=duration,
+                                pattern=slide["pattern"],
+                                delay=delay,
+                                reflect_position=slide["reflect"],
+                                is_ex="x" in slide_modifier,
+                                is_break="b" in slide_modifier,
+                                is_connect=slide["type"] == "connected_slide"
+                            )
+                            measure_offset += slide['duration'] + delay
+
+                    # TODO: [caxerx] convert to festival mode
+                    # is_break, is_ex, is_tapless = False, False, False
+                    # modifier = event["modifier"]
+                    # if "b" in modifier:
+                    #     is_break = True
+                    # if "x" in modifier:
+                    #     is_ex = True
+                    # if any([a in modifier for a in "?!$"]):
+                    #     # Tapless slides
+                    #     # ? means the slide has no tap
+                    #     # ! produces a tapless slide with no path, just a moving star
+                    #     # $ is a remnant of 2simai, it is equivalent to ?
+                    #     is_tapless = True
+                    #
+                    # if "*" in modifier:
+                    #     # Chained slides should have the same offset
+                    #     pass
+                    # elif "`" in modifier:
+                    #     # Equivalent to one tick in ma2 with resolution of 384
+                    #     offset += 0.0027
+                    # else:
+                    #     offset = 0
+                    #
+                    # if not (is_tapless or event["start_button"] in star_positions):
+                    #     simai_chart.add_tap(
+                    #         measure=simai_chart._measure + offset,
+                    #         position=event["start_button"],
+                    #         is_break=is_break,
+                    #         is_star=True,
+                    #         is_ex=is_ex,
+                    #     )
+                    #     star_positions.append(event["start_button"])
+                    #
+                    # equivalent_bpm = event["equivalent_bpm"]
+                    # duration = event["duration"]
+                    # delay = 0.25
+                    # if equivalent_bpm is not None:
+                    #     multiplier = (
+                    #         simai_chart.get_bpm(simai_chart._measure) / equivalent_bpm
+                    #     )
+                    #     duration = multiplier * duration
+                    #     delay = multiplier * delay
+                    #
+                    # simai_chart.add_slide(
+                    #     measure=simai_chart._measure + offset,
+                    #     start_position=event["start_button"],
+                    #     end_position=event["end_button"],
+                    #     duration=duration,
+                    #     pattern=event["pattern"],
+                    #     delay=delay,
+                    #     reflect_position=event["reflect_position"],
+                    # )
+
                 elif event_type == "slide":
                     is_break, is_ex, is_tapless = False, False, False
                     modifier = event["modifier"]
@@ -148,7 +262,7 @@ class SimaiChart:
                     delay = 0.25
                     if equivalent_bpm is not None:
                         multiplier = (
-                            simai_chart.get_bpm(simai_chart._measure) / equivalent_bpm
+                                simai_chart.get_bpm(simai_chart._measure) / equivalent_bpm
                         )
                         duration = multiplier * duration
                         delay = multiplier * delay
@@ -226,12 +340,12 @@ class SimaiChart:
         return cls.from_str(chart)
 
     def add_tap(
-        self,
-        measure: float,
-        position: int,
-        is_break: bool = False,
-        is_star: bool = False,
-        is_ex: bool = False,
+            self,
+            measure: float,
+            position: int,
+            is_break: bool = False,
+            is_star: bool = False,
+            is_ex: bool = False,
     ) -> SimaiChart:
         """Adds a tap note to the list of notes.
 
@@ -283,8 +397,8 @@ class SimaiChart:
             x
             for x in self.notes
             if isinstance(x, TapNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
         ]
         for note in tap_notes:
             self.notes.remove(note)
@@ -292,12 +406,12 @@ class SimaiChart:
         return self
 
     def add_hold(
-        self,
-        measure: float,
-        position: int,
-        duration: float,
-        is_ex: bool = False,
-        is_break: bool = False,
+            self,
+            measure: float,
+            position: int,
+            duration: float,
+            is_ex: bool = False,
+            is_break: bool = False,
     ) -> SimaiChart:
         """Adds a hold note to the list of notes.
 
@@ -342,8 +456,8 @@ class SimaiChart:
             x
             for x in self.notes
             if isinstance(x, HoldNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
         ]
         for note in hold_notes:
             self.notes.remove(note)
@@ -351,14 +465,17 @@ class SimaiChart:
         return self
 
     def add_slide(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
-        duration: float,
-        pattern: str,
-        delay: float = 0.25,
-        reflect_position: Optional[int] = None,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
+            duration: float,
+            pattern: str,
+            delay: float = 0.25,
+            is_break: bool = False,
+            is_ex: bool = False,
+            is_connect: bool = False,
+            reflect_position: Optional[int] = None,
     ) -> SimaiChart:
         """Adds both a slide note to the list of notes.
 
@@ -390,6 +507,9 @@ class SimaiChart:
             duration,
             pattern,
             delay,
+            is_break,
+            is_ex,
+            is_connect,
             reflect_position,
         )
         self.notes.append(slide_note)
@@ -397,18 +517,18 @@ class SimaiChart:
         return self
 
     def del_slide(
-        self,
-        measure: float,
-        start_position: int,
-        end_position: int,
+            self,
+            measure: float,
+            start_position: int,
+            end_position: int,
     ) -> SimaiChart:
         slide_notes = [
             x
             for x in self.notes
             if isinstance(x, SlideNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == start_position
-            and x.end_position == end_position
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == start_position
+               and x.end_position == end_position
         ]
         for note in slide_notes:
             self.notes.remove(note)
@@ -416,11 +536,11 @@ class SimaiChart:
         return self
 
     def add_touch_tap(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        is_firework: bool = False,
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            is_firework: bool = False,
     ) -> SimaiChart:
         touch_tap_note = TouchTapNote(measure, position, region, is_firework)
         self.notes.append(touch_tap_note)
@@ -428,18 +548,18 @@ class SimaiChart:
         return self
 
     def del_touch_tap(
-        self,
-        measure: float,
-        position: int,
-        region: str,
+            self,
+            measure: float,
+            position: int,
+            region: str,
     ) -> SimaiChart:
         touch_taps = [
             x
             for x in self.notes
             if isinstance(x, TouchTapNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
-            and x.region == region
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
+               and x.region == region
         ]
         for note in touch_taps:
             self.notes.remove(note)
@@ -447,12 +567,12 @@ class SimaiChart:
         return self
 
     def add_touch_hold(
-        self,
-        measure: float,
-        position: int,
-        region: str,
-        duration: float,
-        is_firework: bool = False,
+            self,
+            measure: float,
+            position: int,
+            region: str,
+            duration: float,
+            is_firework: bool = False,
     ) -> SimaiChart:
         touch_hold_note = TouchHoldNote(
             measure, position, region, duration, is_firework
@@ -462,18 +582,18 @@ class SimaiChart:
         return self
 
     def del_touch_hold(
-        self,
-        measure: float,
-        position: int,
-        region: str,
+            self,
+            measure: float,
+            position: int,
+            region: str,
     ) -> SimaiChart:
         touch_holds = [
             x
             for x in self.notes
             if isinstance(x, TouchHoldNote)
-            and math.isclose(x.measure, measure, abs_tol=0.0001)
-            and x.position == position
-            and x.region == region
+               and math.isclose(x.measure, measure, abs_tol=0.0001)
+               and x.position == position
+               and x.region == region
         ]
         for note in touch_holds:
             self.notes.remove(note)
@@ -639,12 +759,12 @@ class SimaiChart:
                 note
                 for note in notes
                 if note.note_type
-                in [
-                    NoteType.hold,
-                    NoteType.ex_hold,
-                    NoteType.touch_hold,
-                    NoteType.complete_slide,
-                ]
+                   in [
+                       NoteType.hold,
+                       NoteType.ex_hold,
+                       NoteType.touch_hold,
+                       NoteType.complete_slide,
+                   ]
             ]
             for hold_slide in hold_slides:
                 # Get hold and slide end measure and compare with last_measure
@@ -698,8 +818,8 @@ class SimaiChart:
                 )
 
             if (
-                previous_divisor != current_divisor
-                or int(measure_tick) > previous_measure_int
+                    previous_divisor != current_divisor
+                    or int(measure_tick) > previous_measure_int
             ):
                 result += "\n"
                 result += convert_to_fragment(
@@ -737,7 +857,7 @@ class SimaiChart:
 
 
 def parse_file_str(
-    file: str, lark_file: str = "simai.lark"
+        file: str, lark_file: str = "simai.lark"
 ) -> Tuple[str, List[Tuple[int, SimaiChart]]]:
     parser = Lark.open(lark_file, rel_to=__file__, parser="lalr")
 
@@ -757,9 +877,9 @@ def parse_file_str(
 
 
 def parse_file(
-    path: str,
-    encoding: str = "UTF-8",
-    lark_file: str = "simai.lark",
+        path: str,
+        encoding: str = "UTF-8",
+        lark_file: str = "simai.lark",
 ) -> Tuple[str, List[Tuple[int, SimaiChart]]]:
     with open(path, encoding=encoding) as f:
         simai = f.read()

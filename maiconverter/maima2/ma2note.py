@@ -49,7 +49,8 @@ class SlideNote(MaiNote):
             duration: float,
             delay: float = 0.25,
             is_break: bool = False,
-            is_ex: bool = False
+            is_ex: bool = False,
+            is_connect: bool = False,
     ) -> None:
         """Produces a ma2 slide note.
 
@@ -89,6 +90,7 @@ class SlideNote(MaiNote):
         self.duration = duration
         self.is_ex = is_ex
         self.is_break = is_break
+        self.is_connect = is_connect
 
     def to_str(self, resolution: int = 384) -> str:
         measure = measure_to_ma2_time(self.measure, resolution)
@@ -98,7 +100,9 @@ class SlideNote(MaiNote):
             raise ValueError(f"Unknown slide pattern {self.pattern}")
 
         prefix = "NM"
-        if self.is_ex and self.is_break:
+        if self.is_connect:
+            prefix = "CN"
+        elif self.is_ex and self.is_break:
             prefix = "BX"
         elif self.is_ex:
             prefix = "EX"

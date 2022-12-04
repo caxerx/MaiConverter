@@ -38,10 +38,7 @@ class NoteType(enum.Enum):
     ex_break_tap = 12
     break_hold = 13
     ex_break_hold = 14
-    break_slide = 15
-    ex_slide = 16
-    ex_break_slide = 17
-    ex_break_star = 18
+    ex_break_star = 15
     end_slide = 128
 
 
