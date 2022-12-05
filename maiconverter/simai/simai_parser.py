@@ -236,7 +236,7 @@ class FragmentTransformer(Transformer):
 
             if only_last_slide_has_duration and len(i) != 1:
                 equivalent_bpm = i[-1]['equivalent_bpm']
-                average_duration = i[-1]['duration'] / (len(i) - 1)
+                average_duration = i[-1]['duration'] / len(i)
                 for j in i:
                     j['duration'] = average_duration
                     j['equivalent_bpm'] = equivalent_bpm
