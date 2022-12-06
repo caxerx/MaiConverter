@@ -103,9 +103,9 @@ class SlideNote(MaiNote):
         if self.is_connect:
             prefix = "CN"
         elif self.is_ex and self.is_break:
-            prefix = "BX"
+            prefix = "BR"
         elif self.is_ex:
-            prefix = "EX"
+            prefix = "NM"
         elif self.is_break:
             prefix = "BR"
 
