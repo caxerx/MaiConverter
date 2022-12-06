@@ -169,7 +169,7 @@ class SimaiChart:
                                 is_break="b" in slide_modifier,
                                 is_connect=slide["type"] == "connected_slide"
                             )
-                            measure_offset += slide['duration'] + delay
+                            measure_offset += duration + delay
 
                 elif event_type == "touch_tap":
                     is_firework = False

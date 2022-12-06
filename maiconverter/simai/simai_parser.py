@@ -1,3 +1,4 @@
+import math
 from typing import List
 from lark import Lark, Transformer
 
@@ -235,11 +236,32 @@ class FragmentTransformer(Transformer):
                     "Please only specify duration in last slide or specify all slide duration in the combined slide.")
 
             if only_last_slide_has_duration and len(i) != 1:
+                # Connect slide need to strictly follow last note's resolution
+                # 1 off error will cause all notes afterward disappear or even game crashes
+                # Here will round all average note's duration by resolution to prevent error
+                resolution = 384
                 equivalent_bpm = i[-1]['equivalent_bpm']
-                average_duration = i[-1]['duration'] / len(i)
-                for j in i:
-                    j['duration'] = average_duration
+                duration_by_resolution = round(i[-1]['duration'] * resolution)
+                last_note_duration_by_resolution = duration_by_resolution
+                average_duration_by_resolution = math.floor(duration_by_resolution / len(i))
+                # the tick lost is to compensate the tick lose because of using floor on average duration
+                # to prevent the duration of last notes off too much with others
+                tick_lost = duration_by_resolution / len(i) - average_duration_by_resolution
+                total_missed_ticks = 0
+                for j in i[:-1]:
+                    j['duration'] = average_duration_by_resolution
                     j['equivalent_bpm'] = equivalent_bpm
+                    last_note_duration_by_resolution -= average_duration_by_resolution
+                    total_missed_ticks += tick_lost
+                    if total_missed_ticks >= 1:
+                        j['duration'] += 1
+                        total_missed_ticks -= 1
+                        last_note_duration_by_resolution -= 1
+                i[-1]['equivalent_bpm'] = equivalent_bpm
+                i[-1]['duration'] = last_note_duration_by_resolution
+
+                for j in i:
+                    j['duration'] = j['duration'] / resolution
 
         return {
             "type": "slide_fes",
