@@ -27,7 +27,7 @@ divisor: "{" NUMBER "}"
 
 
 slide_connector: /[-^<>szvw]|p{1,2}|q{1,2}|V[0-8]/
-slide_modifier: /[bx$]+/
+slide_modifier: /[bx$?!]+/
 slide_pos: /[0-8]/
 
 slide_beg: (slide_connector slide_pos slide_modifier? duration? slide_modifier?)* slide_connector slide_pos slide_modifier? duration slide_modifier?
