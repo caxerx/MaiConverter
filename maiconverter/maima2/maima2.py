@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import math
 from collections import defaultdict
 from typing import Tuple, List, Union
@@ -870,10 +871,26 @@ class MaiMa2:
         result += "\n".join([meter.to_str(resolution) for meter in self.meters]) + "\n"
         result += "\n"
 
-        self.notes.sort()
+        self.notes.sort(key=functools.cmp_to_key(sort_note))
         result += "\n".join([note.to_str(resolution=resolution) for note in self.notes])
 
         result += "\n"
         result += self.get_epilog()
         result += "\n"
         return result
+
+
+def sort_note(note1, note2):
+    if note1.measure == note2.measure:
+        if (isinstance(note1, TapNote) and isinstance(note2, SlideNote)) or (isinstance(note2, TapNote) and isinstance(note1, SlideNote)):
+            if isinstance(note1, TapNote):
+                return -1
+            if isinstance(note2, TapNote):
+                return 1
+        if isinstance(note1, SlideNote) and isinstance(note2, SlideNote):
+            if note1.is_connect and not note2.is_connect:
+                return 1
+            elif note1.is_connect and not note2.is_connect:
+                return -1
+            return 0
+    return note1.measure - note2.measure
